@@ -1,122 +1,193 @@
-"use client";
+generator client {
+  provider = "prisma-client-js"
+}
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import InputField from "../InputField"; // Ensure this component is set up correctly
-import { resultSchema, ResultSchema } from "@/lib/formValidationSchemas"; // Update this import based on your validation schema
-import { createResult, updateResult } from "@/lib/actions"; // Ensure these actions are set up correctly
-import { Dispatch, SetStateAction, useEffect } from "react";
-import { toast } from "react-toastify";
-import { useRouter } from "next/navigation";
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
 
-const ResultForm = ({
-  type,
-  data,
-  setOpen,
-  relatedData,
-}: {
-  type: "create" | "update";
-  data?: any;
-  setOpen: Dispatch<SetStateAction<boolean>>;
-  relatedData?: any;
-}) => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ResultSchema>({
-    resolver: zodResolver(resultSchema), // Ensure this is the correct schema for results
-  });
+model Admin {
+  id       String @id
+  username String @unique
+}
 
-  const onSubmit = handleSubmit((data) => {
-    if (type === "create") {
-      createResult(data);
-    } else {
-      updateResult(data);
-    }
-  });
+model Student {
+  id          String       @id
+  username    String       @unique
+  name        String
+  surname     String
+  email       String?      @unique
+  phone       String?      @unique
+  address     String
+  img         String?
+  bloodType   String
+  sex         UserSex
+  createdAt   DateTime     @default(now())
+  parentId    String
+  parent      Parent       @relation(fields: [parentId], references: [id])
+  classId     Int
+  class       Class        @relation(fields: [classId], references: [id])
+  gradeId     Int
+  grade       Grade        @relation(fields: [gradeId], references: [id])
+  attendances Attendance[]
+  results     Result[]
+  birthday    DateTime
+}
 
-  const router = useRouter();
+model Teacher {
+  id        String    @id
+  username  String    @unique
+  name      String
+  surname   String
+  email     String?   @unique
+  phone     String?   @unique
+  address   String
+  img       String?
+  bloodType String
+  sex       UserSex
+  createdAt DateTime  @default(now())
+  subjects  Subject[]
+  lessons   Lesson[]
+  classes   Class[]
+  birthday  DateTime
+}
 
-  useEffect(() => {
-    if (state.success) {
-      toast(`Result has been ${type === "create" ? "created" : "updated"}!`);
-      setOpen(false);
-      router.refresh();
-    }
-  }, [state, router, type, setOpen]);
+model Parent {
+  id        String    @id
+  username  String    @unique
+  name      String
+  surname   String
+  email     String?   @unique
+  phone     String    @unique
+  address   String
+  createdAt DateTime  @default(now())
+  students  Student[]
+}
 
-  return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new result" : "Update the result"}
-      </h1>
+model Grade {
+  id    Int @id @default(autoincrement())
+  level Int @unique
 
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Score"
-          name="score"
-          defaultValue={data?.score}
-          register={register}
-          error={errors?.score}
-        />
-        {data && (
-          <InputField
-            label="Result ID"
-            name="id"
-            defaultValue={data?.id}
-            register={register}
-            error={errors?.id}
-            hidden
-          />
-        )}
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Exam</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("examId")}
-            defaultValue={data?.examId}
-          >
-            {relatedData.exams.map((exam: { id: number; title: string }) => (
-              <option value={exam.id} key={exam.id}>
-                {exam.title}
-              </option>
-            ))}
-          </select>
-          {errors.examId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.examId.message.toString()}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Student</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("studentId")}
-            defaultValue={data?.studentId}
-          >
-            {relatedData.students.map((student: { id: string; name: string; surname: string }) => (
-              <option value={student.id} key={student.id}>
-                {student.name + " " + student.surname}
-              </option>
-            ))}
-          </select>
-          {errors.studentId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.studentId.message.toString()}
-            </p>
-          )}
-        </div>
-      </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
-  );
-};
+  students Student[]
+  classess Class[]
+}
 
-export default ResultForm;
+model Class {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  capacity Int
+
+  supervisorId  String?
+  supervisor    Teacher?       @relation(fields: [supervisorId], references: [id])
+  lessons       Lesson[]
+  students      Student[]
+  gradeId       Int
+  grade         Grade          @relation(fields: [gradeId], references: [id])
+  events        Event[]
+  announcements Announcement[]
+}
+
+model Subject {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  teachers Teacher[]
+  lessons  Lesson[]
+}
+
+model Lesson {
+  id        Int      @id @default(autoincrement())
+  name      String
+  day       Day
+  startTime DateTime
+  endTime   DateTime
+
+  subjectId   Int
+  subject     Subject      @relation(fields: [subjectId], references: [id])
+  classId     Int
+  class       Class        @relation(fields: [classId], references: [id])
+  teacherId   String
+  teacher     Teacher      @relation(fields: [teacherId], references: [id])
+  exams       Exam[]
+  assignments Assignment[]
+  attendances Attendance[]
+}
+
+model Exam {
+  id        Int      @id @default(autoincrement())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+
+  lessonId Int
+  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  results  Result[]
+}
+
+model Assignment {
+  id        Int      @id @default(autoincrement())
+  title     String
+  startDate DateTime
+  dueDate   DateTime
+
+  lessonId Int
+  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  results  Result[]
+}
+
+model Result {
+  id    Int @id @default(autoincrement())
+  score Int
+
+  examId       Int?
+  exam         Exam?       @relation(fields: [examId], references: [id])
+  assignmentId Int?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id])
+}
+
+model Attendance {
+  id      Int      @id @default(autoincrement())
+  date    DateTime
+  present Boolean
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+  lessonId  Int
+  lesson    Lesson  @relation(fields: [lessonId], references: [id])
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  startTime   DateTime
+  endTime     DateTime
+
+  classId Int?
+  class   Class? @relation(fields: [classId], references: [id])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  date        DateTime
+
+  classId Int?
+  class   Class? @relation(fields: [classId], references: [id])
+}
+
+enum UserSex {
+  MALE
+  FEMALE
+}
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+}
